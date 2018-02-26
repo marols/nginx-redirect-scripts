@@ -1,13 +1,15 @@
 #!/bin/bash
+set +e
 
-FILES=sources/*.csv
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+FILES=$DIR/sources/*.csv
 
 good=0
 bad=0
 
 printf  "\n\n\
 ==========================================\n\
-\e[1mRunning Nginx redirect tests\e[0m\n\
+\e[1mRunning redirect tests\e[0m\n\
 ==========================================\n\n"
 
 for file in $FILES
@@ -20,23 +22,25 @@ do
     while read line; do
         IFS=';' read -ra URLS <<< "$line"
 
+        printf "\n"
+
         responseCode=$(curl --write-out "%{http_code}" --silent --output /dev/null ${URLS[0]})
         responseUrl=$(curl -L --write-out "%{url_effective}" --silent --output /dev/null ${URLS[0]})
 
         formattedUrl=$(python -c "import urllib, sys; print urllib.unquote(sys.argv[1])" ${responseUrl})
 
         response="$responseCode $formattedUrl"
-        #printf "\n\n${URLS[0]}\n${URLS[1]}\n"
+        #printf "\n\n${URLS[0]}\n${URLS[1]}\n${URLS[2]}\n"
 
-        if [ "$response" == "301 ${URLS[1]}" ]; then
+        if [ "$response" == "${URLS[2]} ${URLS[1]}" ]; then
             printf "."
             let "good++"
             let "loopGood++"
         else
-            printf "F\n"
+            printf "Test failed:\n"
             printf "Req: ${URLS[0]}\n"
             printf "Act: $response\n"
-            printf "Exp: 301 ${URLS[1]}\n"
+            printf "Exp: ${URLS[2]} ${URLS[1]}\n"
             let "bad++"
             let "loopBad++"
         fi
@@ -52,3 +56,7 @@ printf  "\n\n\
 ==========================================\n\n\
 \e[32m$good URLs redirect properly\e[0m. \e[31m$bad have failed.\e[0m \n\n\
 ==========================================\n\n"
+
+printf "\n"
+
+exit $bad
